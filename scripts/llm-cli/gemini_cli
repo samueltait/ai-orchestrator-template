@@ -8,7 +8,7 @@
 #
 # Models:
 #   gemini-2.0-flash-lite  - Fastest, cheapest (Tier 1)
-#   gemini-2.5-flash       - Balanced (Tier 2)
+#   gemini-2.0-flash       - Fast, good quality (Tier 2)
 #   gemini-2.5-pro         - Best quality, 1M context (Tier 3)
 #
 # Environment:
@@ -17,7 +17,7 @@
 set -e
 
 # Defaults
-MODEL="gemini-2.5-flash"
+MODEL="gemini-2.0-flash"
 TASK=""
 INPUT_FILE=""
 OUTPUT_FORMAT="text"
@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: gemini_cli --model MODEL --task \"prompt\" [--in FILE] [--output-format json|text]"
             echo ""
             echo "Options:"
-            echo "  --model, -m        Model to use (default: gemini-2.5-flash)"
+            echo "  --model, -m        Model to use (default: gemini-2.0-flash)"
             echo "  --task, -t         Task/prompt to send"
             echo "  --in, -i           Input file to include in prompt"
             echo "  --output-format    Output format: text or json (default: text)"
@@ -63,9 +63,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --temperature      Temperature 0-1 (default: 0.7)"
             echo ""
             echo "Models:"
-            echo "  gemini-2.0-flash-lite  Fastest, cheapest"
-            echo "  gemini-2.5-flash       Balanced"
-            echo "  gemini-2.5-pro         Best quality, 1M context"
+            echo "  gemini-2.0-flash-lite  Fastest, cheapest (Tier 1)"
+            echo "  gemini-2.0-flash       Fast, good quality (Tier 2)"
+            echo "  gemini-2.5-pro         Best quality, 1M context (Tier 3)"
             echo ""
             echo "Environment:"
             echo "  GEMINI_API_KEY     Required - your Gemini API key"
@@ -122,14 +122,17 @@ ESCAPED_TASK=$(echo "$TASK" | jq -Rs '.')
 
 # Map model names to API model IDs
 case $MODEL in
-    gemini-2.0-flash-lite|flash-lite)
+    gemini-2.0-flash-lite|flash-lite|lite)
         API_MODEL="gemini-2.0-flash-lite"
         ;;
-    gemini-2.5-flash|flash)
-        API_MODEL="gemini-2.5-flash-preview-05-20"
+    gemini-2.0-flash|flash)
+        API_MODEL="gemini-2.0-flash"
         ;;
     gemini-2.5-pro|pro)
-        API_MODEL="gemini-2.5-pro-preview-05-06"
+        API_MODEL="gemini-2.5-pro"
+        ;;
+    gemini-2.5-flash)
+        API_MODEL="gemini-2.5-flash"
         ;;
     *)
         API_MODEL="$MODEL"

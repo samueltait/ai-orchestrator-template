@@ -14,7 +14,7 @@ set -e
 # Defaults
 QUERY=""
 TOP_K=5
-MODEL="llama-3.1-sonar-small-128k-online"
+MODEL="sonar"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -37,12 +37,13 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --query, -q    Search query (required)"
             echo "  --top-k, -k    Number of search results to consider (default: 5)"
-            echo "  --model, -m    Model to use (default: llama-3.1-sonar-small-128k-online)"
+            echo "  --model, -m    Model to use (default: sonar)"
             echo ""
             echo "Models:"
-            echo "  llama-3.1-sonar-small-128k-online   Fast, online search"
-            echo "  llama-3.1-sonar-large-128k-online   Better quality, online search"
-            echo "  llama-3.1-sonar-huge-128k-online    Best quality, online search"
+            echo "  sonar                  Fast online search (default)"
+            echo "  sonar-pro              Advanced search, complex queries"
+            echo "  sonar-reasoning-pro    Chain of Thought reasoning"
+            echo "  sonar-deep-research    Expert-level comprehensive research"
             echo ""
             echo "Environment:"
             echo "  PERPLEXITY_API_KEY    Required - your Perplexity API key"
