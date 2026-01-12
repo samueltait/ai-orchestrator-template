@@ -1,0 +1,145 @@
+# AI Orchestration Template - CI/CD Pipeline
+# Runs tests, linting, and validation on push and PR
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # Validate documentation and configuration
+  validate-docs:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required files exist
+        run: |
+          echo "Checking required documentation files..."
+          files=(
+            "README.md"
+            "CLAUDE.md"
+            "SETUP_CHECKLIST.md"
+            "LLM_Orchestrator_Instructions.md"
+            "env_template.sh"
+          )
+          for file in "${files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "ERROR: Missing required file: $file"
+              exit 1
+            fi
+            echo "OK: $file exists"
+          done
+
+      - name: Validate env_template has no real keys
+        run: |
+          echo "Checking env_template.sh for leaked keys..."
+          # Check for patterns that look like real API keys
+          if grep -E '(sk-[a-zA-Z0-9]{20,}|AIza[a-zA-Z0-9]{35}|xox[baprs]-[a-zA-Z0-9-]+)' env_template.sh; then
+            echo "ERROR: Possible API key found in env_template.sh"
+            exit 1
+          fi
+          echo "OK: No API keys detected in template"
+
+      - name: Check markdown links (basic)
+        run: |
+          echo "Checking for broken internal links..."
+          # Find all markdown links to local files
+          grep -hoE '\[.*\]\([^)]+\.md\)' *.md | while read -r link; do
+            file=$(echo "$link" | sed 's/.*(\(.*\))/\1/' | cut -d'#' -f1)
+            if [ ! -f "$file" ] && [ "$file" != "" ]; then
+              echo "WARNING: Potentially broken link: $link -> $file"
+            fi
+          done
+
+  # Test Claude Canvas
+  test-canvas:
+    name: Test Claude Canvas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: claude-canvas/canvas
+        run: bun install
+
+      - name: Run tests
+        working-directory: claude-canvas/canvas
+        run: bun test
+
+      - name: Type check
+        working-directory: claude-canvas/canvas
+        run: bunx tsc --noEmit
+
+  # Validate shell scripts
+  validate-scripts:
+    name: Validate Shell Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: |
+          echo "Linting shell scripts..."
+          find . -name "*.sh" -type f | while read -r script; do
+            echo "Checking: $script"
+            shellcheck "$script" || true
+          done
+
+      - name: Check setup.sh is executable-ready
+        run: |
+          if [ -f "setup.sh" ]; then
+            bash -n setup.sh
+            echo "OK: setup.sh syntax is valid"
+          fi
+
+  # Check JSON configuration files
+  validate-json:
+    name: Validate JSON Files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          echo "Validating JSON files..."
+          find . -name "*.json" -type f | while read -r file; do
+            echo "Checking: $file"
+            python3 -m json.tool "$file" > /dev/null || {
+              echo "ERROR: Invalid JSON in $file"
+              exit 1
+            }
+          done
+          echo "OK: All JSON files are valid"
+
+  # Version consistency check
+  version-check:
+    name: Version Consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check version consistency across docs
+        run: |
+          echo "Checking version consistency..."
+          # Extract version from README.md
+          readme_version=$(grep -oE 'Version:\*\* [0-9]+\.[0-9]+\.[0-9]+' README.md | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          claude_version=$(grep -oE 'Version:\*\* [0-9]+\.[0-9]+\.[0-9]+' CLAUDE.md | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+          if [ "$readme_version" != "$claude_version" ]; then
+            echo "WARNING: Version mismatch between README.md ($readme_version) and CLAUDE.md ($claude_version)"
+          else
+            echo "OK: Versions match: $readme_version"
+          fi

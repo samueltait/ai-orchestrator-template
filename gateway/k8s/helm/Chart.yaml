@@ -1,0 +1,24 @@
+apiVersion: v2
+name: llm-gateway
+description: Production-grade LLM Gateway with semantic caching, intelligent routing, and observability
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - llm
+  - ai
+  - gateway
+  - orchestration
+  - caching
+  - routing
+home: https://github.com/your-org/llm-gateway
+sources:
+  - https://github.com/your-org/llm-gateway
+maintainers:
+  - name: AI Team
+    email: ai-team@example.com
+dependencies:
+  - name: redis
+    version: "18.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled

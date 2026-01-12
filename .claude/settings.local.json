@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(tree:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(bun:*)",
+      "Bash(echo:*)",
+      "Bash(tmux:*)",
+      "Bash(cd:*)",
+      "Bash(ollama --version:*)",
+      "Bash(pandoc:*)",
+      "Bash(curl:*)",
+      "Bash(sh)",
+      "Bash(brew install:*)",
+      "Bash(pip3 install:*)",
+      "Bash(ollama pull:*)",
+      "Bash(ollama list:*)",
+      "Bash(ollama run:*)",
+      "Bash(chmod:*)",
+      "Bash(source ~/.llm_keys)",
+      "Bash(ls:*)",
+      "WebFetch(domain:help.figma.com)",
+      "Bash(claude mcp add:*)",
+      "Bash(claude mcp list:*)",
+      "mcp__figma__whoami",
+      "WebFetch(domain:developers.figma.com)",
+      "Bash(claude mcp:*)",
+      "Bash(unzip:*)",
+      "Bash(opencode --version:*)",
+      "Bash([ -n \"$GEMINI_API_KEY\" ])",
+      "Bash([ -n \"$OPENAI_API_KEY\" ])",
+      "Bash([ -n \"$PERPLEXITY_API_KEY\" ])",
+      "Bash(claude --version:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(xargs basename:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git init:*)"
+    ]
+  }
+}

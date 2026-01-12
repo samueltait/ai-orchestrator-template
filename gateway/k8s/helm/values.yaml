@@ -1,0 +1,197 @@
+# Default values for llm-gateway
+# This is a YAML-formatted file.
+
+replicaCount: 3
+
+image:
+  repository: llm-gateway
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: llm-gateway.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - llm-gateway
+          topologyKey: kubernetes.io/hostname
+
+# Gateway configuration
+gateway:
+  # Provider API keys (use secrets in production)
+  providers:
+    anthropic:
+      enabled: true
+      apiKeySecret: llm-gateway-secrets
+      apiKeySecretKey: ANTHROPIC_API_KEY
+    openai:
+      enabled: true
+      apiKeySecret: llm-gateway-secrets
+      apiKeySecretKey: OPENAI_API_KEY
+    gemini:
+      enabled: true
+      apiKeySecret: llm-gateway-secrets
+      apiKeySecretKey: GEMINI_API_KEY
+    ollama:
+      enabled: false
+      baseUrl: http://ollama:11434
+
+  # Caching configuration
+  cache:
+    enabled: true
+    type: redis  # memory or redis
+    ttlSeconds: 3600
+    maxSize: 10000
+    semanticSimilarityThreshold: 0.92
+
+  # Routing configuration
+  routing:
+    defaultStrategy: balanced  # balanced, cost_optimized, latency_optimized, quality_optimized
+
+  # Reliability configuration
+  reliability:
+    retryAttempts: 3
+    retryDelayMs: 1000
+    circuitBreaker:
+      failureThreshold: 5
+      recoveryTimeMs: 30000
+
+  # Security configuration
+  security:
+    piiDetection:
+      enabled: true
+      action: mask
+    promptInjection:
+      enabled: true
+      action: warn
+
+  # Cost configuration
+  cost:
+    budgets:
+      daily: 1000
+      weekly: 5000
+      monthly: 20000
+    alerts:
+      enabled: true
+      thresholds: [0.5, 0.75, 0.9]
+
+# Redis subchart configuration
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+
+# Observability
+observability:
+  tracing:
+    enabled: true
+    exporterUrl: ""  # OpenTelemetry collector URL
+  metrics:
+    enabled: true
+    port: 9090
+  logging:
+    level: info
+    format: json
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Network Policy
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
