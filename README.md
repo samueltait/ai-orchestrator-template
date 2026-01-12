@@ -1,8 +1,8 @@
-# AI Assistant Template
+# AI Orchestrator Template
 
-**Version:** 2.1.0 | **Updated:** 2026-01-12
+**Version:** 3.0.0 | **Updated:** 2026-01-12
 
-A comprehensive multi-tool AI assistant configuration for software development, research, and automation tasks. This template provides ready-to-use configurations for selecting the optimal tools and services.
+A comprehensive multi-LLM orchestration system for software development, research, and automation. This template configures Claude as a **general contractor** that delegates tasks to specialized AI services.
 
 ---
 

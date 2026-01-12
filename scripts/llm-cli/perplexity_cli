@@ -1,0 +1,134 @@
+#!/bin/bash
+#
+# perplexity_cli - CLI wrapper for Perplexity API (web search + AI)
+#
+# Usage:
+#   perplexity_cli --query "search query" [--top-k N]
+#   perplexity_cli "search query"
+#
+# Environment:
+#   PERPLEXITY_API_KEY - Required
+
+set -e
+
+# Defaults
+QUERY=""
+TOP_K=5
+MODEL="llama-3.1-sonar-small-128k-online"
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --query|-q)
+            QUERY="$2"
+            shift 2
+            ;;
+        --top-k|-k)
+            TOP_K="$2"
+            shift 2
+            ;;
+        --model|-m)
+            MODEL="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: perplexity_cli --query \"search query\" [--top-k N]"
+            echo ""
+            echo "Options:"
+            echo "  --query, -q    Search query (required)"
+            echo "  --top-k, -k    Number of search results to consider (default: 5)"
+            echo "  --model, -m    Model to use (default: llama-3.1-sonar-small-128k-online)"
+            echo ""
+            echo "Models:"
+            echo "  llama-3.1-sonar-small-128k-online   Fast, online search"
+            echo "  llama-3.1-sonar-large-128k-online   Better quality, online search"
+            echo "  llama-3.1-sonar-huge-128k-online    Best quality, online search"
+            echo ""
+            echo "Environment:"
+            echo "  PERPLEXITY_API_KEY    Required - your Perplexity API key"
+            echo ""
+            echo "Output:"
+            echo "  Returns search results with citations in markdown format"
+            exit 0
+            ;;
+        *)
+            if [ -z "$QUERY" ]; then
+                QUERY="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Check for API key
+if [ -z "$PERPLEXITY_API_KEY" ]; then
+    echo "Error: PERPLEXITY_API_KEY not set" >&2
+    echo "Add to ~/.llm_keys: export PERPLEXITY_API_KEY=\"your-key\"" >&2
+    exit 1
+fi
+
+# Read from stdin if no query provided
+if [ -z "$QUERY" ]; then
+    if [ -t 0 ]; then
+        echo "Error: No query provided. Use --query or pass as argument." >&2
+        exit 1
+    fi
+    QUERY=$(cat)
+fi
+
+# Escape for JSON
+ESCAPED_QUERY=$(echo "$QUERY" | jq -Rs '.')
+
+# System prompt for structured output
+SYSTEM_PROMPT="You are a research assistant. Provide comprehensive answers with citations. Format your response as markdown with:
+1. A clear summary at the top
+2. Key findings as bullet points
+3. Citations as [Source](URL) at the end
+Be thorough but concise."
+
+ESCAPED_SYSTEM=$(echo "$SYSTEM_PROMPT" | jq -Rs '.')
+
+# Make API request
+RESPONSE=$(curl -s "https://api.perplexity.ai/chat/completions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $PERPLEXITY_API_KEY" \
+    -d "{
+        \"model\": \"$MODEL\",
+        \"messages\": [
+            {\"role\": \"system\", \"content\": ${ESCAPED_SYSTEM}},
+            {\"role\": \"user\", \"content\": ${ESCAPED_QUERY}}
+        ],
+        \"max_tokens\": 4096,
+        \"temperature\": 0.2,
+        \"top_p\": 0.9,
+        \"search_domain_filter\": [],
+        \"return_citations\": true,
+        \"search_recency_filter\": \"month\"
+    }")
+
+# Check for errors
+if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+    echo "Error from Perplexity API:" >&2
+    echo "$RESPONSE" | jq -r '.error.message // .error' >&2
+    exit 1
+fi
+
+# Extract text from response
+TEXT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+if [ -z "$TEXT" ]; then
+    echo "Error: No response from Perplexity" >&2
+    echo "Raw response: $RESPONSE" >&2
+    exit 1
+fi
+
+# Extract citations if available
+CITATIONS=$(echo "$RESPONSE" | jq -r '.citations // [] | .[] | "- [\(.title // .url)](\(.url))"' 2>/dev/null)
+
+echo "$TEXT"
+
+if [ -n "$CITATIONS" ]; then
+    echo ""
+    echo "## Sources"
+    echo "$CITATIONS"
+fi

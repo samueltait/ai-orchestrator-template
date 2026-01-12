@@ -1,0 +1,146 @@
+#!/bin/bash
+#
+# ollama_cli - CLI wrapper for Ollama (local LLMs)
+#
+# Usage:
+#   ollama_cli --model MODEL --task "prompt" [--in FILE]
+#   echo "prompt" | ollama_cli --model MODEL
+#
+# Models (must be pulled first with `ollama pull MODEL`):
+#   llama3.2           - General purpose (3B)
+#   llama3.2:70b       - Large, better quality (70B)
+#   codellama          - Code-specific
+#   deepseek-coder     - Code-specific
+#   nomic-embed-text   - Embeddings
+#
+# No API key required - runs locally
+
+set -e
+
+# Defaults
+MODEL="llama3.2"
+TASK=""
+INPUT_FILE=""
+OUTPUT_FORMAT="text"
+OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --model|-m)
+            MODEL="$2"
+            shift 2
+            ;;
+        --task|-t)
+            TASK="$2"
+            shift 2
+            ;;
+        --in|-i)
+            INPUT_FILE="$2"
+            shift 2
+            ;;
+        --output-format|-o)
+            OUTPUT_FORMAT="$2"
+            shift 2
+            ;;
+        --host)
+            OLLAMA_HOST="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: ollama_cli --model MODEL --task \"prompt\" [--in FILE]"
+            echo ""
+            echo "Options:"
+            echo "  --model, -m        Model to use (default: llama3.2)"
+            echo "  --task, -t         Task/prompt to send"
+            echo "  --in, -i           Input file to include in prompt"
+            echo "  --output-format    Output format: text or json (default: text)"
+            echo "  --host             Ollama host (default: http://localhost:11434)"
+            echo ""
+            echo "Models (pull first with 'ollama pull MODEL'):"
+            echo "  llama3.2           General purpose (3B)"
+            echo "  llama3.2:70b       Large model (70B)"
+            echo "  codellama          Code-specific"
+            echo "  deepseek-coder     Code-specific"
+            echo "  nomic-embed-text   Embeddings"
+            echo ""
+            echo "Environment:"
+            echo "  OLLAMA_HOST        Ollama server URL (default: http://localhost:11434)"
+            echo ""
+            echo "Note: Ollama must be running. Start with 'ollama serve'"
+            exit 0
+            ;;
+        *)
+            if [ -z "$TASK" ]; then
+                TASK="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Check Ollama is running
+if ! curl -s "${OLLAMA_HOST}/api/tags" > /dev/null 2>&1; then
+    echo "Error: Ollama not running at ${OLLAMA_HOST}" >&2
+    echo "Start with: ollama serve" >&2
+    exit 1
+fi
+
+# Read from stdin if no task provided
+if [ -z "$TASK" ]; then
+    if [ -t 0 ]; then
+        echo "Error: No task provided. Use --task or pipe input." >&2
+        exit 1
+    fi
+    TASK=$(cat)
+fi
+
+# Include input file content if provided
+if [ -n "$INPUT_FILE" ]; then
+    if [ ! -f "$INPUT_FILE" ]; then
+        echo "Error: Input file not found: $INPUT_FILE" >&2
+        exit 1
+    fi
+    FILE_CONTENT=$(cat "$INPUT_FILE")
+    TASK="$TASK
+
+Input file ($INPUT_FILE):
+$FILE_CONTENT"
+fi
+
+# Add JSON instruction if needed
+if [ "$OUTPUT_FORMAT" = "json" ]; then
+    TASK="$TASK
+
+Respond with valid JSON only, no markdown code blocks."
+fi
+
+# Escape for JSON
+ESCAPED_TASK=$(echo "$TASK" | jq -Rs '.')
+
+# Make API request
+RESPONSE=$(curl -s "${OLLAMA_HOST}/api/generate" \
+    -H "Content-Type: application/json" \
+    -d "{
+        \"model\": \"$MODEL\",
+        \"prompt\": ${ESCAPED_TASK},
+        \"stream\": false
+    }")
+
+# Check for errors
+if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+    echo "Error from Ollama:" >&2
+    echo "$RESPONSE" | jq -r '.error' >&2
+    exit 1
+fi
+
+# Extract text from response
+TEXT=$(echo "$RESPONSE" | jq -r '.response // empty')
+
+if [ -z "$TEXT" ]; then
+    echo "Error: No response from Ollama" >&2
+    echo "Raw response: $RESPONSE" >&2
+    exit 1
+fi
+
+echo "$TEXT"

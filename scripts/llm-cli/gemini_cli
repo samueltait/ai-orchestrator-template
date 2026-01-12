@@ -1,0 +1,170 @@
+#!/bin/bash
+#
+# gemini_cli - CLI wrapper for Google Gemini API
+#
+# Usage:
+#   gemini_cli --model MODEL --task "prompt" [--in FILE] [--output-format json|text]
+#   echo "prompt" | gemini_cli --model MODEL
+#
+# Models:
+#   gemini-2.0-flash-lite  - Fastest, cheapest (Tier 1)
+#   gemini-2.5-flash       - Balanced (Tier 2)
+#   gemini-2.5-pro         - Best quality, 1M context (Tier 3)
+#
+# Environment:
+#   GEMINI_API_KEY - Required
+
+set -e
+
+# Defaults
+MODEL="gemini-2.5-flash"
+TASK=""
+INPUT_FILE=""
+OUTPUT_FORMAT="text"
+MAX_TOKENS=4096
+TEMPERATURE=0.7
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --model|-m)
+            MODEL="$2"
+            shift 2
+            ;;
+        --task|-t)
+            TASK="$2"
+            shift 2
+            ;;
+        --in|-i)
+            INPUT_FILE="$2"
+            shift 2
+            ;;
+        --output-format|-o)
+            OUTPUT_FORMAT="$2"
+            shift 2
+            ;;
+        --max-tokens)
+            MAX_TOKENS="$2"
+            shift 2
+            ;;
+        --temperature)
+            TEMPERATURE="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: gemini_cli --model MODEL --task \"prompt\" [--in FILE] [--output-format json|text]"
+            echo ""
+            echo "Options:"
+            echo "  --model, -m        Model to use (default: gemini-2.5-flash)"
+            echo "  --task, -t         Task/prompt to send"
+            echo "  --in, -i           Input file to include in prompt"
+            echo "  --output-format    Output format: text or json (default: text)"
+            echo "  --max-tokens       Maximum tokens in response (default: 4096)"
+            echo "  --temperature      Temperature 0-1 (default: 0.7)"
+            echo ""
+            echo "Models:"
+            echo "  gemini-2.0-flash-lite  Fastest, cheapest"
+            echo "  gemini-2.5-flash       Balanced"
+            echo "  gemini-2.5-pro         Best quality, 1M context"
+            echo ""
+            echo "Environment:"
+            echo "  GEMINI_API_KEY     Required - your Gemini API key"
+            exit 0
+            ;;
+        *)
+            # If no flag, treat as task
+            if [ -z "$TASK" ]; then
+                TASK="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Check for API key
+if [ -z "$GEMINI_API_KEY" ]; then
+    echo "Error: GEMINI_API_KEY not set" >&2
+    echo "Add to ~/.llm_keys: export GEMINI_API_KEY=\"your-key\"" >&2
+    exit 1
+fi
+
+# Read from stdin if no task provided
+if [ -z "$TASK" ]; then
+    if [ -t 0 ]; then
+        echo "Error: No task provided. Use --task or pipe input." >&2
+        exit 1
+    fi
+    TASK=$(cat)
+fi
+
+# Include input file content if provided
+if [ -n "$INPUT_FILE" ]; then
+    if [ ! -f "$INPUT_FILE" ]; then
+        echo "Error: Input file not found: $INPUT_FILE" >&2
+        exit 1
+    fi
+    FILE_CONTENT=$(cat "$INPUT_FILE")
+    TASK="$TASK
+
+Input file ($INPUT_FILE):
+$FILE_CONTENT"
+fi
+
+# Add JSON instruction if needed
+if [ "$OUTPUT_FORMAT" = "json" ]; then
+    TASK="$TASK
+
+Respond with valid JSON only, no markdown code blocks."
+fi
+
+# Escape for JSON
+ESCAPED_TASK=$(echo "$TASK" | jq -Rs '.')
+
+# Map model names to API model IDs
+case $MODEL in
+    gemini-2.0-flash-lite|flash-lite)
+        API_MODEL="gemini-2.0-flash-lite"
+        ;;
+    gemini-2.5-flash|flash)
+        API_MODEL="gemini-2.5-flash-preview-05-20"
+        ;;
+    gemini-2.5-pro|pro)
+        API_MODEL="gemini-2.5-pro-preview-05-06"
+        ;;
+    *)
+        API_MODEL="$MODEL"
+        ;;
+esac
+
+# Make API request
+RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models/${API_MODEL}:generateContent?key=${GEMINI_API_KEY}" \
+    -H 'Content-Type: application/json' \
+    -d "{
+        \"contents\": [{
+            \"parts\": [{
+                \"text\": ${ESCAPED_TASK}
+            }]
+        }],
+        \"generationConfig\": {
+            \"temperature\": ${TEMPERATURE},
+            \"maxOutputTokens\": ${MAX_TOKENS}
+        }
+    }")
+
+# Check for errors
+if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+    echo "Error from Gemini API:" >&2
+    echo "$RESPONSE" | jq -r '.error.message' >&2
+    exit 1
+fi
+
+# Extract text from response
+TEXT=$(echo "$RESPONSE" | jq -r '.candidates[0].content.parts[0].text // empty')
+
+if [ -z "$TEXT" ]; then
+    echo "Error: No response from Gemini" >&2
+    echo "Raw response: $RESPONSE" >&2
+    exit 1
+fi
+
+echo "$TEXT"

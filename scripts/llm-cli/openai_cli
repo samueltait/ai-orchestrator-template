@@ -1,0 +1,155 @@
+#!/bin/bash
+#
+# openai_cli - CLI wrapper for OpenAI API
+#
+# Usage:
+#   openai_cli --model MODEL --task "prompt" [--in FILE] [--output-format json|text]
+#   echo "prompt" | openai_cli --model MODEL
+#
+# Models:
+#   gpt-4o-mini    - Fast, cost-effective (Tier 2)
+#   gpt-4o         - Best quality (Tier 3)
+#   gpt-4-turbo    - Previous best (Tier 3)
+#
+# Environment:
+#   OPENAI_API_KEY - Required
+
+set -e
+
+# Defaults
+MODEL="gpt-4o"
+TASK=""
+INPUT_FILE=""
+OUTPUT_FORMAT="text"
+MAX_TOKENS=4096
+TEMPERATURE=0.7
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --model|-m)
+            MODEL="$2"
+            shift 2
+            ;;
+        --task|-t)
+            TASK="$2"
+            shift 2
+            ;;
+        --in|-i)
+            INPUT_FILE="$2"
+            shift 2
+            ;;
+        --output-format|-o)
+            OUTPUT_FORMAT="$2"
+            shift 2
+            ;;
+        --max-tokens)
+            MAX_TOKENS="$2"
+            shift 2
+            ;;
+        --temperature)
+            TEMPERATURE="$2"
+            shift 2
+            ;;
+        --help|-h)
+            echo "Usage: openai_cli --model MODEL --task \"prompt\" [--in FILE] [--output-format json|text]"
+            echo ""
+            echo "Options:"
+            echo "  --model, -m        Model to use (default: gpt-4o)"
+            echo "  --task, -t         Task/prompt to send"
+            echo "  --in, -i           Input file to include in prompt"
+            echo "  --output-format    Output format: text or json (default: text)"
+            echo "  --max-tokens       Maximum tokens in response (default: 4096)"
+            echo "  --temperature      Temperature 0-2 (default: 0.7)"
+            echo ""
+            echo "Models:"
+            echo "  gpt-4o-mini        Fast, cost-effective"
+            echo "  gpt-4o             Best quality"
+            echo "  gpt-4-turbo        Previous generation"
+            echo ""
+            echo "Environment:"
+            echo "  OPENAI_API_KEY     Required - your OpenAI API key"
+            exit 0
+            ;;
+        *)
+            if [ -z "$TASK" ]; then
+                TASK="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Check for API key
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo "Error: OPENAI_API_KEY not set" >&2
+    echo "Add to ~/.llm_keys: export OPENAI_API_KEY=\"your-key\"" >&2
+    exit 1
+fi
+
+# Read from stdin if no task provided
+if [ -z "$TASK" ]; then
+    if [ -t 0 ]; then
+        echo "Error: No task provided. Use --task or pipe input." >&2
+        exit 1
+    fi
+    TASK=$(cat)
+fi
+
+# Include input file content if provided
+if [ -n "$INPUT_FILE" ]; then
+    if [ ! -f "$INPUT_FILE" ]; then
+        echo "Error: Input file not found: $INPUT_FILE" >&2
+        exit 1
+    fi
+    FILE_CONTENT=$(cat "$INPUT_FILE")
+    TASK="$TASK
+
+Input file ($INPUT_FILE):
+$FILE_CONTENT"
+fi
+
+# Add JSON instruction if needed
+RESPONSE_FORMAT="{\"type\": \"text\"}"
+if [ "$OUTPUT_FORMAT" = "json" ]; then
+    RESPONSE_FORMAT="{\"type\": \"json_object\"}"
+    TASK="$TASK
+
+Respond with valid JSON only."
+fi
+
+# Escape for JSON
+ESCAPED_TASK=$(echo "$TASK" | jq -Rs '.')
+
+# Make API request
+RESPONSE=$(curl -s "https://api.openai.com/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d "{
+        \"model\": \"$MODEL\",
+        \"messages\": [{
+            \"role\": \"user\",
+            \"content\": ${ESCAPED_TASK}
+        }],
+        \"max_tokens\": $MAX_TOKENS,
+        \"temperature\": $TEMPERATURE,
+        \"response_format\": $RESPONSE_FORMAT
+    }")
+
+# Check for errors
+if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+    echo "Error from OpenAI API:" >&2
+    echo "$RESPONSE" | jq -r '.error.message' >&2
+    exit 1
+fi
+
+# Extract text from response
+TEXT=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+if [ -z "$TEXT" ]; then
+    echo "Error: No response from OpenAI" >&2
+    echo "Raw response: $RESPONSE" >&2
+    exit 1
+fi
+
+echo "$TEXT"
