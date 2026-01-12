@@ -123,8 +123,8 @@ if [ -z "$TEXT" ]; then
     exit 1
 fi
 
-# Extract citations if available
-CITATIONS=$(echo "$RESPONSE" | jq -r '.citations // [] | .[] | "- [\(.title // .url)](\(.url))"' 2>/dev/null)
+# Extract citations if available (API returns array of URL strings)
+CITATIONS=$(echo "$RESPONSE" | jq -r '.citations // [] | .[] | "- <\(.)>"' 2>/dev/null)
 
 echo "$TEXT"
 
