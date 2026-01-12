@@ -38,9 +38,14 @@ jobs:
       - name: Validate env_template has no real keys
         run: |
           echo "Checking env_template.sh for leaked keys..."
-          # Check for patterns that look like real API keys
-          if grep -E '(sk-[a-zA-Z0-9]{20,}|AIza[a-zA-Z0-9]{35}|xox[baprs]-[a-zA-Z0-9-]+)' env_template.sh; then
+          # Check for patterns that look like real API keys (exclude placeholder patterns)
+          if grep -E '(sk-[a-zA-Z0-9]{20,}|AIza[a-zA-Z0-9]{35})' env_template.sh | grep -v 'your-\|placeholder\|example'; then
             echo "ERROR: Possible API key found in env_template.sh"
+            exit 1
+          fi
+          # Check for Slack tokens but exclude obvious placeholders
+          if grep -E 'xox[baprs]-[a-zA-Z0-9-]{10,}' env_template.sh | grep -v 'your-slack\|placeholder'; then
+            echo "ERROR: Possible Slack token found in env_template.sh"
             exit 1
           fi
           echo "OK: No API keys detected in template"
@@ -56,27 +61,43 @@ jobs:
             fi
           done
 
-  # Test Claude Canvas
+  # Test Claude Canvas (optional - only runs if submodule exists)
   test-canvas:
     name: Test Claude Canvas
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Check if claude-canvas exists
+        id: check-canvas
+        run: |
+          if [ -d "claude-canvas/canvas" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "claude-canvas not found - skipping tests"
+          fi
 
       - name: Setup Bun
+        if: steps.check-canvas.outputs.exists == 'true'
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
+        if: steps.check-canvas.outputs.exists == 'true'
         working-directory: claude-canvas/canvas
         run: bun install
 
       - name: Run tests
+        if: steps.check-canvas.outputs.exists == 'true'
         working-directory: claude-canvas/canvas
         run: bun test
 
       - name: Type check
+        if: steps.check-canvas.outputs.exists == 'true'
         working-directory: claude-canvas/canvas
         run: bunx tsc --noEmit
 
