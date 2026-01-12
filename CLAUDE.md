@@ -1,6 +1,6 @@
 # AI Assistant Template
 
-**Version:** 2.0.0 | **Updated:** 2026-01-12
+**Version:** 2.1.0 | **Updated:** 2026-01-12
 
 This folder contains the multi-tool AI assistant configuration. Copy this `CLAUDE.md` file to any project root to configure Claude Code with available tools and services.
 
@@ -73,6 +73,26 @@ For simple tasks, use inline: `[Used: Claude Opus 4.5, ~500 tokens, ~$0.04]`
 | `claude-canvas/` | Visual TUI toolkit for Claude Code |
 | `.claude/settings.local.json` | Claude Code permissions (see `docs/PERMISSIONS.md`) |
 | `docs/` | Extended documentation (CLI reference, models, costs, etc.) |
+| `templates/` | PRD, spike, and feedback templates |
+| `scripts/feature-init.sh` | Initialize new features with PRD |
+
+## PRD & Prototype Workflow
+
+| Stage | Actions | Tools |
+|-------|---------|-------|
+| **PRD** | Create from template, sync to Notion | `./scripts/feature-init.sh` |
+| **Spike** | Research feasibility, document findings | Perplexity, Ollama |
+| **Prototype** | Build POC, track in Notion | Claude, OpenCode |
+| **User Testing** | Gather feedback, document issues | Feedback template |
+| **Iterate** | Address feedback, update PRD | Claude, OpenCode |
+| **Production** | Final implementation, tests, deploy | OpenCode, Gateway |
+
+**Quick Start:**
+```bash
+./scripts/feature-init.sh "feature-name"  # Creates PRD + Notion page
+```
+
+See `docs/PRD_WORKFLOW.md` and `docs/PROTOTYPE_WORKFLOW.md` for details.
 
 ## Setup
 

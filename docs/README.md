@@ -1,8 +1,8 @@
 # Documentation Index
 
-**AI Orchestration Template v1.8.0**
+**AI Assistant Template v2.0.0**
 
-This folder contains extended documentation for the AI Orchestration Template.
+This folder contains extended documentation for the AI Assistant Template.
 
 ---
 
@@ -18,6 +18,8 @@ This folder contains extended documentation for the AI Orchestration Template.
 | [IPC_PROTOCOL.md](IPC_PROTOCOL.md) | Canvas IPC specification | Extending canvases |
 | [PERMISSIONS.md](PERMISSIONS.md) | Claude Code permissions | Customizing permissions |
 | [CANVAS_PLUGINS.md](CANVAS_PLUGINS.md) | Creating custom canvases | Building new canvas types |
+| [PRD_WORKFLOW.md](PRD_WORKFLOW.md) | PRD creation & Notion integration | Planning new features |
+| [PROTOTYPE_WORKFLOW.md](PROTOTYPE_WORKFLOW.md) | Iterative development stages | Building prototypes |
 
 ---
 
@@ -37,6 +39,10 @@ This folder contains extended documentation for the AI Orchestration Template.
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) - Handle failures gracefully
 - [PERFORMANCE.md](PERFORMANCE.md) - Optimize for speed and cost
 
+### Product Development
+- [PRD_WORKFLOW.md](PRD_WORKFLOW.md) - Create and manage PRDs with Notion
+- [PROTOTYPE_WORKFLOW.md](PROTOTYPE_WORKFLOW.md) - Iterative development stages
+
 ### Development
 - [CANVAS_PLUGINS.md](CANVAS_PLUGINS.md) - Create custom canvas types
 - [IPC_PROTOCOL.md](IPC_PROTOCOL.md) - Canvas communication protocol
@@ -50,10 +56,14 @@ This folder contains extended documentation for the AI Orchestration Template.
 |------|----------|---------|
 | Main README | `../README.md` | Project overview |
 | Setup Guide | `../SETUP_CHECKLIST.md` | Installation steps |
-| System Prompt | `../LLM_Orchestrator_Instructions.md` | Full orchestrator |
+| Tool Selection Guide | `../LLM_Orchestrator_Instructions.md` | Full tool selection patterns |
 | OpenCode Guide | `../OpenCode_Quick_Start_Guide.md` | Autonomous coding |
 | API Keys Template | `../env_template.sh` | Environment setup |
 | Canvas Template | `../claude-canvas/canvas/src/canvases/TEMPLATE.tsx` | New canvas boilerplate |
+| PRD Template | `../templates/PRD_TEMPLATE.md` | New PRD boilerplate |
+| Spike Template | `../templates/SPIKE_TEMPLATE.md` | Technical spike template |
+| Feedback Template | `../templates/FEEDBACK_TEMPLATE.md` | User testing feedback form |
+| Feature Init Script | `../scripts/feature-init.sh` | Initialize new features |
 
 ---
 

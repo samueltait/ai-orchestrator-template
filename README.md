@@ -1,6 +1,6 @@
 # AI Assistant Template
 
-**Version:** 2.0.0 | **Updated:** 2026-01-12
+**Version:** 2.1.0 | **Updated:** 2026-01-12
 
 A comprehensive multi-tool AI assistant configuration for software development, research, and automation tasks. This template provides ready-to-use configurations for selecting the optimal tools and services.
 
@@ -96,7 +96,16 @@ ai_template/
 │   ├── PERFORMANCE.md                 # Benchmarks & optimization
 │   ├── IPC_PROTOCOL.md                # Canvas IPC specification
 │   ├── PERMISSIONS.md                 # Permissions reference
-│   └── CANVAS_PLUGINS.md              # Custom canvas development
+│   ├── CANVAS_PLUGINS.md              # Custom canvas development
+│   ├── PRD_WORKFLOW.md                # PRD creation & Notion integration
+│   └── PROTOTYPE_WORKFLOW.md          # Iterative development workflow
+├── templates/                         # Reusable templates
+│   ├── PRD_TEMPLATE.md                # New PRD template
+│   ├── SPIKE_TEMPLATE.md              # Technical spike template
+│   ├── FEEDBACK_TEMPLATE.md           # User testing feedback form
+│   └── notion-schemas/                # Notion database schemas
+├── scripts/                           # Helper scripts
+│   └── feature-init.sh                # Initialize new features
 ├── gateway/                           # LLM Gateway
 │   ├── README.md                      # Gateway documentation
 │   ├── src/
@@ -154,6 +163,46 @@ Add productivity integrations:
 5. Get Rev.ai key at `https://rev.ai`
 
 See `SETUP_CHECKLIST.md` for detailed instructions.
+
+---
+
+## PRD & Prototype Development
+
+This template includes a structured workflow for feature development with Notion integration:
+
+### Development Stages
+
+| Stage | Purpose | Duration |
+|-------|---------|----------|
+| **PRD** | Define problem & requirements | 1-3 days |
+| **Spike** | Validate technical feasibility | 1-2 days |
+| **Prototype** | Build working proof of concept | 3-7 days |
+| **User Testing** | Gather real user feedback | 1-3 days |
+| **Iterate** | Refine based on feedback | Variable |
+| **Production** | Ship production-ready code | Variable |
+
+### Quick Start
+
+```bash
+# Initialize a new feature
+./scripts/feature-init.sh "user-authentication"
+
+# This creates:
+# - docs/prds/user-authentication.md (PRD from template)
+# - Notion page for tracking (if configured)
+```
+
+### Notion Integration
+
+PRDs sync with Notion for status tracking:
+
+```bash
+# Add to ~/.llm_keys
+export NOTION_API_KEY="secret_your-token"
+export NOTION_PRD_DATABASE_ID="your-database-id"
+```
+
+See `docs/PRD_WORKFLOW.md` and `docs/PROTOTYPE_WORKFLOW.md` for complete documentation.
 
 ---
 

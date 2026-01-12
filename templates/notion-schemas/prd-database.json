@@ -1,0 +1,157 @@
+{
+  "title": "PRD Database",
+  "description": "Product Requirements Documents tracking database for prototype development workflow",
+  "properties": {
+    "Name": {
+      "type": "title",
+      "description": "Feature name (e.g., 'User Authentication')"
+    },
+    "Status": {
+      "type": "select",
+      "options": [
+        { "name": "Draft", "color": "gray" },
+        { "name": "In Review", "color": "yellow" },
+        { "name": "Approved", "color": "green" },
+        { "name": "In Development", "color": "blue" },
+        { "name": "Complete", "color": "purple" },
+        { "name": "Rejected", "color": "red" }
+      ]
+    },
+    "Stage": {
+      "type": "select",
+      "options": [
+        { "name": "PRD", "color": "gray" },
+        { "name": "Spike", "color": "orange" },
+        { "name": "Prototype", "color": "yellow" },
+        { "name": "Testing", "color": "blue" },
+        { "name": "Iterate", "color": "purple" },
+        { "name": "Production", "color": "green" }
+      ]
+    },
+    "Priority": {
+      "type": "select",
+      "options": [
+        { "name": "P0", "color": "red" },
+        { "name": "P1", "color": "orange" },
+        { "name": "P2", "color": "yellow" }
+      ]
+    },
+    "Author": {
+      "type": "people",
+      "description": "Person who created the PRD"
+    },
+    "Assignee": {
+      "type": "people",
+      "description": "Person currently responsible for the feature"
+    },
+    "Created": {
+      "type": "created_time"
+    },
+    "Updated": {
+      "type": "last_edited_time"
+    },
+    "Due Date": {
+      "type": "date",
+      "description": "Target completion date"
+    },
+    "Tags": {
+      "type": "multi_select",
+      "options": [
+        { "name": "Frontend", "color": "blue" },
+        { "name": "Backend", "color": "green" },
+        { "name": "API", "color": "purple" },
+        { "name": "Database", "color": "orange" },
+        { "name": "Infrastructure", "color": "gray" },
+        { "name": "Security", "color": "red" },
+        { "name": "Performance", "color": "yellow" },
+        { "name": "UX", "color": "pink" }
+      ]
+    },
+    "Complexity": {
+      "type": "select",
+      "options": [
+        { "name": "Small", "color": "green" },
+        { "name": "Medium", "color": "yellow" },
+        { "name": "Large", "color": "orange" },
+        { "name": "XL", "color": "red" }
+      ]
+    },
+    "Local File": {
+      "type": "url",
+      "description": "Link to local PRD markdown file in repo"
+    },
+    "Figma": {
+      "type": "url",
+      "description": "Link to Figma designs"
+    },
+    "GitHub PR": {
+      "type": "url",
+      "description": "Link to implementation PR"
+    },
+    "Notes": {
+      "type": "rich_text",
+      "description": "Additional notes or context"
+    }
+  },
+  "views": [
+    {
+      "name": "By Status",
+      "type": "board",
+      "group_by": "Status",
+      "sort": [
+        { "property": "Priority", "direction": "ascending" },
+        { "property": "Updated", "direction": "descending" }
+      ]
+    },
+    {
+      "name": "By Stage",
+      "type": "board",
+      "group_by": "Stage",
+      "sort": [
+        { "property": "Priority", "direction": "ascending" }
+      ]
+    },
+    {
+      "name": "All PRDs",
+      "type": "table",
+      "properties": ["Name", "Status", "Stage", "Priority", "Assignee", "Due Date", "Tags"],
+      "sort": [
+        { "property": "Updated", "direction": "descending" }
+      ]
+    },
+    {
+      "name": "My PRDs",
+      "type": "table",
+      "filter": {
+        "property": "Assignee",
+        "people": { "contains": "me" }
+      },
+      "properties": ["Name", "Status", "Stage", "Priority", "Due Date"]
+    },
+    {
+      "name": "Active Development",
+      "type": "table",
+      "filter": {
+        "and": [
+          { "property": "Status", "select": { "equals": "In Development" } }
+        ]
+      },
+      "properties": ["Name", "Stage", "Priority", "Assignee", "GitHub PR"]
+    }
+  ],
+  "setup_instructions": {
+    "steps": [
+      "1. Create a new Notion database",
+      "2. Add each property from the 'properties' section above",
+      "3. Configure select/multi-select options as specified",
+      "4. Create views as described in 'views' section",
+      "5. Share database with your Notion integration",
+      "6. Copy the database ID to NOTION_PRD_DATABASE_ID in ~/.llm_keys"
+    ],
+    "api_example": {
+      "create_database": "POST https://api.notion.com/v1/databases",
+      "query_database": "POST https://api.notion.com/v1/databases/{database_id}/query",
+      "create_page": "POST https://api.notion.com/v1/pages"
+    }
+  }
+}
