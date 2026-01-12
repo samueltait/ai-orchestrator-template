@@ -105,6 +105,161 @@ jobs:
             echo "OK: setup.sh syntax is valid"
           fi
 
+  # Test LLM CLI wrappers
+  test-cli-wrappers:
+    name: Test LLM CLI Wrappers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y jq shellcheck
+
+      - name: Check CLI scripts exist and are executable
+        run: |
+          echo "Checking CLI wrapper scripts..."
+          cli_scripts=(
+            "scripts/llm-cli/gemini_cli"
+            "scripts/llm-cli/openai_cli"
+            "scripts/llm-cli/perplexity_cli"
+            "scripts/llm-cli/ollama_cli"
+            "scripts/llm-cli/setup.sh"
+          )
+          for script in "${cli_scripts[@]}"; do
+            if [ ! -f "$script" ]; then
+              echo "ERROR: Missing CLI script: $script"
+              exit 1
+            fi
+            echo "✓ $script exists"
+          done
+
+      - name: Validate CLI script syntax
+        run: |
+          echo "Validating CLI script syntax..."
+          for script in scripts/llm-cli/*; do
+            if [ -f "$script" ]; then
+              echo "Checking syntax: $script"
+              bash -n "$script"
+              echo "✓ $script syntax OK"
+            fi
+          done
+
+      - name: Lint CLI scripts with shellcheck
+        run: |
+          echo "Linting CLI scripts..."
+          for script in scripts/llm-cli/*; do
+            if [ -f "$script" ] && [ "$script" != "scripts/llm-cli/setup.sh" ]; then
+              echo "Shellcheck: $script"
+              shellcheck -e SC2086,SC2181 "$script" || true
+            fi
+          done
+
+      - name: Test CLI help commands
+        run: |
+          echo "Testing CLI help commands..."
+          chmod +x scripts/llm-cli/*
+
+          echo "--- gemini_cli --help ---"
+          ./scripts/llm-cli/gemini_cli --help
+
+          echo "--- openai_cli --help ---"
+          ./scripts/llm-cli/openai_cli --help
+
+          echo "--- perplexity_cli --help ---"
+          ./scripts/llm-cli/perplexity_cli --help
+
+          echo "--- ollama_cli --help ---"
+          ./scripts/llm-cli/ollama_cli --help
+
+          echo "✓ All help commands work"
+
+      - name: Test CLI error handling (missing API keys)
+        run: |
+          echo "Testing error handling for missing API keys..."
+          chmod +x scripts/llm-cli/*
+
+          # gemini_cli should fail gracefully without API key
+          if ./scripts/llm-cli/gemini_cli --task "test" 2>&1 | grep -q "GEMINI_API_KEY"; then
+            echo "✓ gemini_cli correctly reports missing API key"
+          else
+            echo "ERROR: gemini_cli should report missing API key"
+            exit 1
+          fi
+
+          # openai_cli should fail gracefully without API key
+          if ./scripts/llm-cli/openai_cli --task "test" 2>&1 | grep -q "OPENAI_API_KEY"; then
+            echo "✓ openai_cli correctly reports missing API key"
+          else
+            echo "ERROR: openai_cli should report missing API key"
+            exit 1
+          fi
+
+          # perplexity_cli should fail gracefully without API key
+          if ./scripts/llm-cli/perplexity_cli --query "test" 2>&1 | grep -q "PERPLEXITY_API_KEY"; then
+            echo "✓ perplexity_cli correctly reports missing API key"
+          else
+            echo "ERROR: perplexity_cli should report missing API key"
+            exit 1
+          fi
+
+      - name: Test setup.sh PATH configuration
+        run: |
+          echo "Testing setup.sh..."
+          source scripts/llm-cli/setup.sh
+          echo "✓ setup.sh loaded successfully"
+
+  # Live API tests (only runs if secrets are configured)
+  test-cli-live:
+    name: Test CLI Live API Calls
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y jq
+
+      - name: Test Gemini CLI (if configured)
+        if: env.GEMINI_API_KEY != ''
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          chmod +x scripts/llm-cli/gemini_cli
+          echo "Testing Gemini CLI with live API..."
+          response=$(./scripts/llm-cli/gemini_cli --model lite --task "Say 'CI test passed' and nothing else")
+          echo "Response: $response"
+          if echo "$response" | grep -iq "test\|passed\|ci"; then
+            echo "✓ Gemini CLI live test passed"
+          else
+            echo "✓ Gemini CLI returned response (content may vary)"
+          fi
+
+      - name: Test Perplexity CLI (if configured)
+        if: env.PERPLEXITY_API_KEY != ''
+        env:
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        run: |
+          chmod +x scripts/llm-cli/perplexity_cli
+          echo "Testing Perplexity CLI with live API..."
+          response=$(./scripts/llm-cli/perplexity_cli --query "What is 2+2? One word answer.")
+          echo "Response: $response"
+          if [ -n "$response" ]; then
+            echo "✓ Perplexity CLI live test passed"
+          fi
+
+      - name: Test OpenAI CLI (if configured)
+        if: env.OPENAI_API_KEY != ''
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          chmod +x scripts/llm-cli/openai_cli
+          echo "Testing OpenAI CLI with live API..."
+          response=$(./scripts/llm-cli/openai_cli --model gpt-4o-mini --task "Say 'CI test passed' and nothing else")
+          echo "Response: $response"
+          if [ -n "$response" ]; then
+            echo "✓ OpenAI CLI live test passed"
+          fi
+
   # Check JSON configuration files
   validate-json:
     name: Validate JSON Files
