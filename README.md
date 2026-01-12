@@ -1,5 +1,7 @@
 # AI Orchestrator Template
 
+[![CI](https://github.com/samueltait/ai-orchestrator-template/actions/workflows/ci.yml/badge.svg)](https://github.com/samueltait/ai-orchestrator-template/actions/workflows/ci.yml)
+
 **Version:** 3.0.0 | **Updated:** 2026-01-12
 
 A comprehensive multi-LLM orchestration system for software development, research, and automation. This template configures Claude as a **general contractor** that delegates tasks to specialized AI services.
