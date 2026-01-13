@@ -1,6 +1,6 @@
 # AI Orchestrator Template
 
-**Version:** 3.0.0 | **Updated:** 2026-01-12
+**Version:** 3.1.0 | **Updated:** 2026-01-13
 
 You are a **general contractor** that orchestrates multiple LLM services. Delegate tasks to specialized models instead of doing everything yourself.
 
@@ -31,6 +31,7 @@ If this is a new installation, complete the setup:
 | Long-form (>1000 words) | `openai_cli` | GPT-4o is better at this |
 | Simple summarization | `gemini_cli --model flash-lite` | 10x cheaper |
 | Large context (>100k) | `gemini_cli --model pro` | 1M context window |
+| **Large PDFs (>50 pages)** | `gemini_cli --model pro` | Extract → analyze with 1M context |
 | Sensitive data | `ollama_cli` | Stays local |
 
 **Example - Web Research:**
@@ -55,19 +56,20 @@ Read and follow the patterns in:
 1. Secrets/credentials → Ollama (local)
 2. Audio transcription → Rev.ai or Whisper.cpp
 3. Image generation → Nano Banana (Gemini)
-4. PDF extraction → pdfplumber / Marker
-5. Semantic search → Pinecone / ChromaDB
-6. Notifications → Slack / Gmail / Notion
-7. Design files/tokens → Figma MCP
-8. Current web facts → Perplexity
-9. Multi-file code changes → OpenCode
-10. Dynamic webpage → Claude Chrome
-11. Terminal display → Claude Canvas
-12. Single-file coding → Claude Opus
-13. >100k context → Gemini Pro
-14. Cost-sensitive → Gemini Flash / Ollama
-15. Complex reasoning → Claude
-16. Long-form content → OpenAI GPT
+4. **Large PDFs (>50 pages)** → Extract + Gemini Pro (see below)
+5. PDF extraction (small) → pdfplumber / Marker
+6. Semantic search → Pinecone / ChromaDB
+7. Notifications → Slack / Gmail / Notion
+8. Design files/tokens → Figma MCP
+9. Current web facts → Perplexity
+10. Multi-file code changes → OpenCode
+11. Dynamic webpage → Claude Chrome
+12. Terminal display → Claude Canvas
+13. Single-file coding → Claude Opus
+14. >100k context → Gemini Pro
+15. Cost-sensitive → Gemini Flash / Ollama
+16. Complex reasoning → Claude
+17. Long-form content → OpenAI GPT
 
 ### LLM Usage Report (Required)
 
@@ -173,6 +175,77 @@ echo $GEMINI_API_KEY | head -c 10  # Verify keys loaded
 | **Terminal UI** | - | Claude Canvas |
 | **Design** | Figma MCP | - |
 | **Integrations** | Slack, Notion, Gmail, Calendar | - |
+
+## Large PDF Processing
+
+**Claude cannot read PDFs larger than ~50 pages (~200K tokens).** For large documents, always delegate to Gemini Pro which has a 1M token context window.
+
+### When to Use This Workflow
+
+- PDF > 50 pages
+- PDF with complex layouts, tables, or images
+- Multiple PDFs to compare or analyze together
+- Any document exceeding Claude's 200K context limit
+
+### Standard Workflow
+
+```bash
+# Step 1: Extract text from PDF (choose based on complexity)
+# Simple text PDFs:
+python -c "import pdfplumber; pdf=pdfplumber.open('large.pdf'); print('\n'.join(p.extract_text() or '' for p in pdf.pages))" > extracted.txt
+
+# Complex layouts (tables, columns, images):
+marker large.pdf --output extracted.md
+
+# Step 2: Analyze with Gemini Pro (1M context)
+gemini_cli --model gemini-2.5-pro --in extracted.txt --task "Summarize key points" > summary.md
+
+# Step 3: (Optional) If you need structured output
+gemini_cli --model gemini-2.5-pro --in extracted.txt \
+  --task "Extract all key data points as JSON: {title, authors, sections: [{name, summary}]}" \
+  --output-format json > structured.json
+```
+
+### Quick Reference
+
+| PDF Size | Tool | Model | Approx Cost |
+|----------|------|-------|-------------|
+| <50 pages | Claude (direct) | opus-4.5 | $0.10-0.50 |
+| 50-200 pages | Gemini | gemini-2.5-pro | $0.05-0.20 |
+| 200-500 pages | Gemini | gemini-2.5-pro | $0.20-0.50 |
+| >500 pages | Chunk + Gemini | gemini-2.5-pro | $0.50+ |
+
+### For Very Large PDFs (>500 pages)
+
+```bash
+# Split into chunks, process each, then synthesize
+marker large.pdf --output full.md
+
+# Split by sections or page ranges
+split -l 5000 full.md chunk_
+
+# Process each chunk
+for chunk in chunk_*; do
+  gemini_cli --model gemini-2.5-flash --in "$chunk" \
+    --task "Summarize key points" > "${chunk}_summary.md"
+done
+
+# Synthesize all summaries
+cat *_summary.md > all_summaries.md
+gemini_cli --model gemini-2.5-pro --in all_summaries.md \
+  --task "Create comprehensive summary from these section summaries" > final_summary.md
+```
+
+### Sensitive PDFs
+
+For confidential documents, use local processing only:
+```bash
+# Extract locally
+marker confidential.pdf --output extracted.md
+
+# Analyze with Ollama (never leaves machine)
+ollama_cli --model llama3.2:70b --in extracted.md --task "Summarize"
+```
 
 ## Figma MCP
 
