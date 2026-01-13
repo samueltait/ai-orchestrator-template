@@ -87,13 +87,23 @@ if [ -z "$OPENAI_API_KEY" ]; then
     exit 1
 fi
 
-# Read from stdin if no task provided
-if [ -z "$TASK" ]; then
-    if [ -t 0 ]; then
-        echo "Error: No task provided. Use --task or pipe input." >&2
-        exit 1
-    fi
-    TASK=$(cat)
+# Read from stdin if available (piped input)
+STDIN_CONTENT=""
+if [ ! -t 0 ]; then
+    STDIN_CONTENT=$(cat)
+fi
+
+# Combine task with stdin if both provided
+if [ -n "$TASK" ] && [ -n "$STDIN_CONTENT" ]; then
+    TASK="$TASK
+
+Input:
+$STDIN_CONTENT"
+elif [ -z "$TASK" ] && [ -n "$STDIN_CONTENT" ]; then
+    TASK="$STDIN_CONTENT"
+elif [ -z "$TASK" ]; then
+    echo "Error: No task provided. Use --task or pipe input." >&2
+    exit 1
 fi
 
 # Include input file content if provided
